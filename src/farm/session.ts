@@ -287,7 +287,7 @@ export type RotationOptions = SessionOptions & {
 	/** Difficulties the player took out. */
 	excluded?: ReadonlySet<number>;
 	oneMapPerSet?: boolean;
-	/** How far off {@link PEAK_MIDDLE} the bar may stray: {@link HOLD_BAND} unless set, `Infinity` to earn the most wherever it goes. */
+	/** How far off {@link PEAK_MIDDLE} the bar may stray: {@link HOLD_BAND} unless set, `Infinity` for simply the plays that earn the most per second. */
 	band?: number;
 };
 
@@ -329,6 +329,7 @@ const better = (trial: Forecast, best: Forecast, band: number) => {
  * sees and the price does not: mindblock, and plays straining more off the peak.
  * For a pp target, simply the best pp plays.
  * Each difficulty at most once: mindblock counts its plays at every rate.
+ * With no band to hold, simply the plays that earn the most per second.
  */
 export const buildRotation = (ranked: readonly RankedMap[], o: RotationOptions): RankedMap[] => {
 	const pinned = ranked.filter(map => o.pinned?.includes(playKey(map)));
@@ -345,8 +346,8 @@ export const buildRotation = (ranked: readonly RankedMap[], o: RotationOptions):
 	};
 
 	const top = fill(allowed);
-	if (o.target.kind === 'pp' || top.length === pinned.length) return top;
 	const band = o.band ?? HOLD_BAND;
+	if (o.target.kind === 'pp' || band === Infinity || top.length === pinned.length) return top;
 
 	const cycle = (map: RankedMap) => map.durationSec + o.delaySec;
 	// what a second of the best loop earns: a play has to beat it for its time

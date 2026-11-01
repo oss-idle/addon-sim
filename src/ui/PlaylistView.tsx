@@ -157,7 +157,7 @@ export default memo(function PlaylistView({
 				) : (
 					<>
 						<div className="outlook-head">
-							<h2>{free ? 'Most XP' : 'Holding your peak'}</h2>
+							<h2>{free ? 'Highest XP/s' : 'Holding your peak'}</h2>
 							<span className="hint">{HOLD_HOURS} hours AFK, {settings.delaySec}s between maps</span>
 						</div>
 						<div className="stats">
