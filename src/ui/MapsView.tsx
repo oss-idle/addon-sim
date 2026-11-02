@@ -1,7 +1,7 @@
 import { memo, useMemo, useState } from 'react';
 import type { MapInfo } from '../engine/client.js';
-import { playKey, type FarmTarget, type MapRow, type RankedMap } from '../farm/metrics.js';
-import { formatWorth, MapName, PlayChips, Trend, worthLabel } from './parts.js';
+import { balanced, playKey, type FarmTarget, type MapRow, type RankedMap } from '../farm/metrics.js';
+import { formatWorth, formatXp, MapName, PlayChips, Trend, worthLabel } from './parts.js';
 
 /** Rows the table renders at most: a thousand-map library would be a slow DOM for nothing. */
 const SHOWN = 300;
@@ -16,11 +16,15 @@ export default memo(function MapsView({ best, rotation, index, target, onToggle 
 	onToggle: (map: MapRow) => void;
 }) {
 	const [query, setQuery] = useState('');
+	const [perPlay, setPerPlay] = useState(false);
+	// a pp or balanced target's value is no XP total, so only XP targets can sort by it
+	const byTotal = perPlay && target.kind !== 'pp' && !balanced(target);
 	const picked = useMemo(() => new Map<number, MapRow>(rotation.map(map => [map.beatmapId, map])), [rotation]);
 	const rows = useMemo(() => {
 		const words = query.toLowerCase().split(/\s+/).filter(Boolean);
 		// a playlist entry is listed at the play the playlist makes
-		const listed = best.map(map => picked.get(map.beatmapId) ?? map);
+		const mapped = best.map(map => picked.get(map.beatmapId) ?? map);
+		const listed = byTotal ? [...mapped].sort((a, b) => b.value - a.value) : mapped;
 		return words.length
 			? listed.filter(map => {
 				const info = index.get(map.beatmapId);
@@ -28,7 +32,7 @@ export default memo(function MapsView({ best, rotation, index, target, onToggle 
 				return words.every(word => text.includes(word));
 			})
 			: listed;
-	}, [best, picked, index, query]);
+	}, [best, picked, index, query, byTotal]);
 	const pp = target.kind === 'pp';
 
 	return (
@@ -39,12 +43,18 @@ export default memo(function MapsView({ best, rotation, index, target, onToggle 
 					value={query} onChange={e => setQuery(e.target.value)}
 				/>
 				<span className="spacer" />
+				{target.kind !== 'pp' && !balanced(target) && (
+					<div className="seg" role="group" aria-label="Sort by">
+						<button className={perPlay ? '' : 'on'} onClick={() => setPerPlay(false)}>XP / s</button>
+						<button className={perPlay ? 'on' : ''} onClick={() => setPerPlay(true)}>XP / play</button>
+					</div>
+				)}
 				<span className="hint">Each difficulty at its best rate and mods. Picked maps stay in the playlist.</span>
 			</div>
 			<div className="rows">
 				<div className="row maps-row head">
 					<span /><span className="num">#</span><span>Map</span><span>Plays as</span>
-					<span className="num">{pp ? 'pp' : worthLabel(target)}</span>
+					<span className="num">{pp ? 'pp' : byTotal ? 'XP' : worthLabel(target)}</span>
 					{!pp && <span className="num">pp</span>}
 					<span className="num">Fails</span><span className="num">Warm-up</span><span className="num">Today</span>
 				</div>
@@ -62,7 +72,7 @@ export default memo(function MapsView({ best, rotation, index, target, onToggle 
 							<span className="num muted">{i + 1}</span>
 							<MapName map={map} info={index.get(map.beatmapId)} />
 							<PlayChips map={map} />
-							<span className="num strong">{pp ? map.pp.toFixed(1) : formatWorth(map, target)}</span>
+							<span className="num strong">{pp ? map.pp.toFixed(1) : byTotal ? formatXp(map.value) : formatWorth(map, target)}</span>
 							{!pp && <span className="num muted">{map.pp.toFixed(0)}</span>}
 							<span className="num fail">{map.failRate ? `${Math.round(map.failRate * 100)}%` : ''}</span>
 							<Trend map={map} />
