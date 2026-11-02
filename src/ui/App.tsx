@@ -439,15 +439,15 @@ export default function App({ open, onClose, version, simulate }: {
 	useEffect(() => () => sweepRef.current?.cancel(), []);
 
 	const save = useCallback(async () => {
-		if (!rotation.length) return;
+		if (!rotation.length || characterId === undefined) return;
 		setSaveState('saving');
 		try {
-			const { created } = await replacePlaylist(s.playlistName, rotation);
+			const { created } = await replacePlaylist(s.playlistName, characterId, rotation);
 			setSaveState(`${created ? 'Created' : 'Updated'} "${s.playlistName}". Reopen song select to see it.`);
 		} catch (e) {
 			setSaveState(e instanceof Error ? e.message : String(e));
 		}
-	}, [rotation, s.playlistName]);
+	}, [rotation, s.playlistName, characterId]);
 
 	const toggle = useCallback((map: MapRow) => {
 		const key = playKey(map);
