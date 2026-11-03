@@ -84,6 +84,14 @@ check('the maps list when asked', withBest.best?.length === 1500, `${withBest.be
 check('as table rows: no more of a play than a row shows', withBest.best[0].xp === undefined && withBest.best[0].perSecond > 0,
 	JSON.stringify(withBest.best[0]));
 
+// a hand-picked playlist is the ticked plays alone, in the order ticked, whatever the size
+const picks = [ranked[40], ranked[3], ranked[700]].map(m.playKey);
+send({ type: 'settings', settings: { ...settings, size: 1, pinned: picks, handPicked: true } });
+await idle();
+const handPicked = out.filter(o => o.type === 'view').at(-1);
+check('a hand-picked playlist is the picks', JSON.stringify(handPicked.rotation.map(m.playKey)) === JSON.stringify(picks),
+	`${handPicked.rotation.map(m.playKey)} vs ${picks}`);
+
 // a scan's questions
 self.onmessage({ data: { type: 'best', id: 1, rank: settings, count: 8 } });
 const best = out.find(o => o.type === 'answer' && o.id === 1)?.value;

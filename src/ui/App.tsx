@@ -68,8 +68,8 @@ type Phase =
  * `characterId` is remembered only once the player has picked one
  * (`characterPinned`), so signing in or out is otherwise picked up.
  */
-/** Which playlist an XP target builds: one to warm up from rested, one to farm at the peak, flat or for more XP, or one that ignores the peak. */
-export type PlaylistKind = 'warmup' | 'steady' | 'xp' | 'free';
+/** Which playlist an XP target builds: one to warm up from rested, one to farm at the peak, flat or for more XP, one that ignores the peak, or the maps ticked in All maps alone. */
+export type PlaylistKind = 'warmup' | 'steady' | 'xp' | 'free' | 'picked';
 
 export type Settings = {
 	/** 'total', 'pp' or 'skills'. */
@@ -248,9 +248,11 @@ export default function App({ open, onClose, version, simulate }: {
 			? `${target.skills.map(skillLabel).join(' + ')}${target.secondary?.length ? ` (+ ${target.secondary.map(skillLabel).join(' + ')})` : ''}`
 			: target.kind;
 		update({
-			playlistName: s.playlistKind === 'warmup' && target.kind !== 'pp'
-				? 'Warm-up'
-				: `Farm: ${goal}${s.playlistKind === 'xp' && target.kind !== 'pp' ? ' (more XP)' : ''}`,
+			playlistName: s.playlistKind === 'picked'
+				? 'Picked maps'
+				: s.playlistKind === 'warmup' && target.kind !== 'pp'
+					? 'Warm-up'
+					: `Farm: ${goal}${s.playlistKind === 'xp' && target.kind !== 'pp' ? ' (more XP)' : ''}`,
 		});
 	}, [target, s.playlistKind, s.playlistNameTouched, update]);
 
@@ -289,6 +291,7 @@ export default function App({ open, onClose, version, simulate }: {
 		size: warmingUp ? s.warmupSize : s.playlistSize,
 		band: s.playlistKind === 'free' ? Infinity : s.playlistKind === 'xp' ? HOLD_BAND : STEADY_BAND,
 		pinned: s.pinned,
+		handPicked: s.playlistKind === 'picked',
 		excluded,
 		oneMapPerSet: s.oneMapPerSet,
 		// a 1500-row list is milliseconds to take in and draw: it waits for the end of a pass
@@ -461,6 +464,14 @@ export default function App({ open, onClose, version, simulate }: {
 		}
 	}, [rotation, s.pinned, s.excluded, update]);
 
+	/** Tick or untick a difficulty in All maps: the ticked ones make the Picked playlist. */
+	const pick = useCallback((map: MapRow) => {
+		const others = s.pinned.filter(key => !key.startsWith(`${map.beatmapId}@`));
+		update(others.length < s.pinned.length
+			? { pinned: others }
+			: { pinned: [...others, playKey(map)], excluded: s.excluded.filter(id => id !== map.beatmapId), playlistKind: 'picked' });
+	}, [s.pinned, s.excluded, update]);
+
 	const steps = rateSteps(Number(character?.speedUpgrades) || 0);
 	const noRates = steps.every(step => s.excludedRates.includes(step));
 
@@ -577,7 +588,10 @@ export default function App({ open, onClose, version, simulate }: {
 					/>
 				)}
 				{model && simulated && view === 'maps' && (
-					<MapsView best={model.best ?? NO_PLAYS} rotation={rotation} index={index} target={farm} onToggle={toggle} />
+					<MapsView
+						best={model.best ?? NO_PLAYS} pinned={s.pinned} index={index} target={farm}
+						onPick={pick} onClear={() => update({ pinned: [] })}
+					/>
 				)}
 
 				{drawer && (

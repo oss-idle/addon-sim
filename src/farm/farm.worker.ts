@@ -50,6 +50,8 @@ export type FarmSettings = RankOptions & {
 	/** How far off the middle of the peak the playlist may stray (`HOLD_BAND`...). */
 	band: number;
 	pinned: string[];
+	/** Whether the playlist is the pinned plays alone, in the order picked. */
+	handPicked: boolean;
 	excluded: Set<number>;
 	oneMapPerSet: boolean;
 	/** Whether the Maps tab is open: its list goes back only then. */
@@ -116,7 +118,7 @@ const update = () => {
 	if (!settings) return;
 	lastRun = Date.now();
 	const upTo = seen;
-	const { gear, warmingUp, size, band, pinned, excluded, oneMapPerSet, withBest, ...rank } = settings;
+	const { gear, warmingUp, size, band, pinned, handPicked, excluded, oneMapPerSet, withBest, ...rank } = settings;
 
 	const rankKey = `${playsVersion}|${keyOf(rank)}|${gear}`;
 	if (ranking?.key !== rankKey) {
@@ -143,16 +145,19 @@ const update = () => {
 	}
 	const { ranked, farm, session } = ranking;
 
-	const searchKey = `${rankKey}|${keyOf({ warmingUp, size, band, pinned, excluded, oneMapPerSet })}`;
+	const searchKey = `${rankKey}|${keyOf({ warmingUp, size, band, pinned, handPicked, excluded, oneMapPerSet })}`;
 	if (search?.key !== searchKey) {
 		const warm = { ...session, startMinutes: 0, sessionSec: WARMUP_HOURS * 3600 };
 		const options = { size, pinned, excluded, oneMapPerSet };
-		const rotation = warmingUp
-			? buildWarmup(ranked, { ...warm, ...options })
-			: buildRotation(ranked, { ...session, ...options, band });
+		const byKey = handPicked ? new Map(ranked.map(map => [playKey(map), map])) : undefined;
+		const rotation = byKey
+			? pinned.flatMap(key => byKey.get(key) ?? [])
+			: warmingUp
+				? buildWarmup(ranked, { ...warm, ...options })
+				: buildRotation(ranked, { ...session, ...options, band });
 		const best: RankedMap[] = [];
 		for (const map of ranked) {
-			if (best.length >= size) break;
+			if (best.length >= (byKey ? rotation.length : size)) break;
 			if (!best.some(other => other.beatmapId === map.beatmapId)) best.push(map);
 		}
 		search = {

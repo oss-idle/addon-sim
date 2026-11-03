@@ -11,6 +11,12 @@ const KINDS: { kind: PlaylistKind; label: string }[] = [
 	{ kind: 'steady', label: 'Steady' },
 	{ kind: 'xp', label: 'More XP' },
 	{ kind: 'free', label: 'No hold' },
+	{ kind: 'picked', label: 'Picked' },
+];
+/** A pp target has its best plays or the picked ones. */
+const PP_KINDS: { kind: PlaylistKind; label: string }[] = [
+	{ kind: 'steady', label: 'Best pp' },
+	{ kind: 'picked', label: 'Picked' },
 ];
 
 /** The playlist, what a session of it earns, and saving it. */
@@ -39,6 +45,7 @@ export default memo(function PlaylistView({
 	const warmPlays = forecast.warmAt === undefined ? 0 : forecast.samples.findIndex(sample => sample.at >= forecast.warmAt!);
 	const holds = forecast.leavesAt === undefined;
 	const free = settings.playlistKind === 'free';
+	const picked = settings.playlistKind === 'picked';
 	const warming = (forecast.samples.at(-1)?.bar ?? PEAK_MIDDLE) > PEAK_MIDDLE;
 	/** Skills the session earns, most first. */
 	const skills = Object.entries(forecast.bySkill ?? {}).filter(([, xp]) => xp > 0).sort((a, b) => b[1] - a[1]);
@@ -55,23 +62,21 @@ export default memo(function PlaylistView({
 		<div className="split">
 			<section className="list">
 				<div className="list-head">
-					{pp ? <h2>Your best pp plays</h2> : (
-						<div className="seg" role="group" aria-label="Playlist">
-							{KINDS.map(({ kind, label }) => (
-								<button
-									key={kind} className={settings.playlistKind === kind ? 'on' : ''}
-									onClick={() => update({ playlistKind: kind, playlistNameTouched: false })}
-								>{label}</button>
-							))}
-						</div>
-					)}
+					<div className="seg" role="group" aria-label="Playlist">
+						{(pp ? PP_KINDS : KINDS).map(({ kind, label }) => (
+							<button
+								key={kind} className={settings.playlistKind === kind || (pp && !picked && kind === 'steady') ? 'on' : ''}
+								onClick={() => update({ playlistKind: kind, playlistNameTouched: false })}
+							>{label}</button>
+						))}
+					</div>
 					<span className="hint">
 						{pending
 							? <><span className="spinner" aria-hidden />{pending}</>
 							: `${rotation.length} maps${pp ? '' : ` · loops every ${Math.round(loopSec / 60)} min`}`}
 					</span>
 					<span className="spacer" />
-					<div className="stepper">
+					{!picked && <div className="stepper">
 						<button
 							aria-label="Fewer maps" disabled={size <= 1}
 							onClick={() => update({ [sizeKey]: size - 1 })}
@@ -84,7 +89,7 @@ export default memo(function PlaylistView({
 							aria-label="More maps"
 							onClick={() => update({ [sizeKey]: size + 1 })}
 						>+</button>
-					</div>
+					</div>}
 				</div>
 				<div className={pending ? 'rows stale' : 'rows'} aria-busy={!!pending}>
 					<div className="row playlist head">
@@ -157,7 +162,7 @@ export default memo(function PlaylistView({
 				) : (
 					<>
 						<div className="outlook-head">
-							<h2>{free ? 'Highest XP/s' : 'Holding your peak'}</h2>
+							<h2>{picked ? 'Your picks' : free ? 'Highest XP/s' : 'Holding your peak'}</h2>
 							<span className="hint">{HOLD_HOURS} hours AFK, {settings.delaySec}s between maps</span>
 						</div>
 						<div className="stats">
@@ -183,7 +188,7 @@ export default memo(function PlaylistView({
 								</span>
 							</div>
 						</figure>
-						{!free && !holds && (
+						{!free && !picked && !holds && (
 							<p className="why">
 								{warming
 									? 'No mix of your maps rests you as much as it warms you at this size: it drifts past your peak into fatigue. Try more maps or a longer autopilot delay.'

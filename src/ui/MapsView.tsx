@@ -1,30 +1,30 @@
 import { memo, useMemo, useState } from 'react';
 import type { MapInfo } from '../engine/client.js';
-import { balanced, playKey, type FarmTarget, type MapRow, type RankedMap } from '../farm/metrics.js';
+import { balanced, playKey, type FarmTarget, type MapRow } from '../farm/metrics.js';
 import { formatWorth, formatXp, MapName, PlayChips, Trend, worthLabel } from './parts.js';
 
 /** Rows the table renders at most: a thousand-map library would be a slow DOM for nothing. */
 const SHOWN = 300;
 
-/** Every difficulty at its best play, to search and hand-pick into the playlist. */
-export default memo(function MapsView({ best, rotation, index, target, onToggle }: {
+/** Every difficulty at its best play, to search and tick into the Picked playlist. */
+export default memo(function MapsView({ best, pinned, index, target, onPick, onClear }: {
 	/** Every difficulty at its best play, best first. */
 	best: MapRow[];
-	rotation: RankedMap[];
+	/** The ticked plays, by `playKey`. */
+	pinned: string[];
 	index: Map<number, MapInfo>;
 	target: FarmTarget;
-	onToggle: (map: MapRow) => void;
+	onPick: (map: MapRow) => void;
+	onClear: () => void;
 }) {
 	const [query, setQuery] = useState('');
 	const [perPlay, setPerPlay] = useState(false);
 	// a pp or balanced target's value is no XP total, so only XP targets can sort by it
 	const byTotal = perPlay && target.kind !== 'pp' && !balanced(target);
-	const picked = useMemo(() => new Map<number, MapRow>(rotation.map(map => [map.beatmapId, map])), [rotation]);
+	const picked = useMemo(() => new Set(pinned.map(key => Number(key.split('@')[0]))), [pinned]);
 	const rows = useMemo(() => {
 		const words = query.toLowerCase().split(/\s+/).filter(Boolean);
-		// a playlist entry is listed at the play the playlist makes
-		const mapped = best.map(map => picked.get(map.beatmapId) ?? map);
-		const listed = byTotal ? [...mapped].sort((a, b) => b.value - a.value) : mapped;
+		const listed = byTotal ? [...best].sort((a, b) => b.value - a.value) : best;
 		return words.length
 			? listed.filter(map => {
 				const info = index.get(map.beatmapId);
@@ -32,7 +32,7 @@ export default memo(function MapsView({ best, rotation, index, target, onToggle 
 				return words.every(word => text.includes(word));
 			})
 			: listed;
-	}, [best, picked, index, query, byTotal]);
+	}, [best, index, query, byTotal]);
 	const pp = target.kind === 'pp';
 
 	return (
@@ -49,7 +49,8 @@ export default memo(function MapsView({ best, rotation, index, target, onToggle 
 						<button className={perPlay ? 'on' : ''} onClick={() => setPerPlay(true)}>XP / play</button>
 					</div>
 				)}
-				<span className="hint">Each difficulty at its best rate and mods. Picked maps stay in the playlist.</span>
+				<span className="hint">{pinned.length} ticked: they make the Picked playlist, each at its rate and mods.</span>
+				<button onClick={onClear} disabled={!pinned.length}>Clear</button>
 			</div>
 			<div className="rows">
 				<div className="row maps-row head">
@@ -59,13 +60,13 @@ export default memo(function MapsView({ best, rotation, index, target, onToggle 
 					<span className="num">Fails</span><span className="num">Warm-up</span><span className="num">Today</span>
 				</div>
 				{rows.slice(0, SHOWN).map((map, i) => {
-					const inPlaylist = picked.get(map.beatmapId) === map;
+					const inPlaylist = picked.has(map.beatmapId);
 					return (
 						<div className={`row maps-row${inPlaylist ? ' picked' : ''}`} key={playKey(map)}>
 							<button
 								className={inPlaylist ? 'add in' : 'add'}
 								aria-label={inPlaylist ? 'Take out of the playlist' : 'Put in the playlist'}
-								onClick={() => onToggle(map)}
+								onClick={() => onPick(map)}
 							>
 								{inPlaylist ? '✓' : '+'}
 							</button>
