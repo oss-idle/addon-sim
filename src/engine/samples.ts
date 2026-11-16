@@ -36,7 +36,9 @@ export type CharacterState = {
 	skills: Record<SkillName, Required<ApiSkillState>>;
 };
 
-const num = (value: unknown) => (typeof value === 'number' ? value : 0);
+/** A number, or one the game stores as text: XP and overdrive are text since its big numbers. */
+const num = (value: unknown) =>
+	(typeof value === 'number' ? value : typeof value === 'string' ? Number(value) || 0 : 0);
 
 /** The `character` row, as the sim API takes it. */
 export const stateOf = (row: Record<string, unknown>): CharacterState => ({
