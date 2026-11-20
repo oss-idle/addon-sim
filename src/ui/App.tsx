@@ -8,7 +8,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Mod } from '@oss-idle/shared/mods';
-import { rateSteps } from '@oss-idle/shared/rate';
 import { Skills } from '@oss-idle/shared/rulesets/mania/4k/skills';
 import {
 	createSettings,
@@ -24,6 +23,7 @@ import {
 	medalMultiplier,
 	liveDifficulties,
 	ratesFor,
+	unlockedRates,
 	runSweep,
 	type MapInfo,
 	type Simulate,
@@ -380,7 +380,7 @@ export default function App({ open, onClose, version, simulate }: {
 
 			const rowGear = Number(row?.staminaUpgrades) || 0;
 			const atPeak = peakMinutes(rowGear);
-			const rates = ratesFor(Number(row?.speedUpgrades) || 0, s.excludedRates);
+			const rates = ratesFor(row, s.excludedRates);
 			const screened = screenRates(rates);
 			const mods: Mod[][] = s.tryHardRock ? [[], ['HR']] : [[]];
 			send({ type: 'reset' });
@@ -472,7 +472,7 @@ export default function App({ open, onClose, version, simulate }: {
 			: { pinned: [...others, playKey(map)], excluded: s.excluded.filter(id => id !== map.beatmapId), playlistKind: 'picked' });
 	}, [s.pinned, s.excluded, update]);
 
-	const steps = rateSteps(Number(character?.speedUpgrades) || 0);
+	const steps = unlockedRates(character);
 	const noRates = steps.every(step => s.excludedRates.includes(step));
 
 	return (

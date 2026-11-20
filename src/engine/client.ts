@@ -108,9 +108,13 @@ export const planSweep = (sets: readonly PlannableSet[], ranked?: ReadonlySet<nu
 export const collectCharts = async (ranked?: ReadonlySet<number>): Promise<LibrarySurvey> =>
 	planSweep(await beatmapStore.sets(), ranked);
 
-/** The rates to simulate: every one the character's Speed upgrades unlock, but `excluded`. */
-export const ratesFor = (speedUpgrades: number, excluded: readonly number[]): number[] =>
-	rateSteps(speedUpgrades).filter(rate => !excluded.includes(rate));
+/** The rates a character can play: each Speed upgrade and each Speed prestige adds a step, as in the game. */
+export const unlockedRates = (character: Record<string, unknown> | undefined): number[] =>
+	rateSteps((Number(character?.speedUpgrades) || 0) + (Number(character?.speedPrestige) || 0));
+
+/** The rates to simulate: every one the character has unlocked, but `excluded`. */
+export const ratesFor = (character: Record<string, unknown> | undefined, excluded: readonly number[]): number[] =>
+	unlockedRates(character).filter(rate => !excluded.includes(rate));
 
 /**
  * Simulate the current character against `requests`: the sweep runs in a worker
